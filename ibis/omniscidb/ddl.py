@@ -413,13 +413,7 @@ class CreateTableFromCSV(OmniSciDBDDL):
     Generate DDL for CREATE TABLE WITH statement. Cannot be cancelled
     """
 
-    def __init__(
-        self,
-        path,
-        table_name,
-        schema,
-        database=None
-    ):
+    def __init__(self, path, table_name, schema, database=None):
         self.path = path
         self.table_name = table_name
         self.schema = schema
