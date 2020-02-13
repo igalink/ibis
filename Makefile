@@ -11,12 +11,12 @@ PYTEST_OPTIONS :=
 SERVICES := omniscidb postgres waiter-postgres mysql clickhouse impala kudu-master kudu-tserver
 
 clean:
-	python setup.py clean
+	python3 setup.py clean
 	find $(MAKEFILE_DIR) -name '*.pyc' -type f -delete
 	rm -rf $(MAKEFILE_DIR)/build $(MAKEFILE_DIR)/dist $(find $(MAKEFILE_DIR) -name __pycache__ -type d)
 
 develop: clean
-	python setup.py develop
+	python3 setup.py develop
 	pre-commit install
 
 typecheck:

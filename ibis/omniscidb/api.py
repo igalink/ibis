@@ -1,8 +1,14 @@
+import ctypes
+
+import dbe
+
 import ibis.common.exceptions as com
 import ibis.config as cf
 from ibis.config import options
 from ibis.omniscidb.client import EXECUTION_TYPE_CURSOR, OmniSciDBClient
 from ibis.omniscidb.compiler import compiles, dialect, rewrites  # noqa: F401
+
+ctypes.CDLL('libDBEngine.so', mode=ctypes.RTLD_GLOBAL)
 
 
 def compile(expr, params=None):
@@ -80,3 +86,7 @@ def connect(
         cf.set_option(k, None)
 
     return client
+
+
+def engine(uri):
+    return dbe.PyDbEngine(uri)
