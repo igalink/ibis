@@ -89,4 +89,4 @@ def connect(
 
 
 def engine(uri):
-    return dbe.PyDbEngine(uri)
+    return dbe.PyDbEngine(uri.encode('utf-8'))
