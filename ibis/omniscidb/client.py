@@ -1,5 +1,7 @@
+import ctypes
 import sys
 
+import dbe
 import pandas as pd
 import pkg_resources
 import pymapd
@@ -17,6 +19,9 @@ from ibis.omniscidb import ddl
 from ibis.omniscidb.compiler import OmniSciDBDialect, build_ast
 from ibis.sql.compiler import DDL, DML
 from ibis.util import log
+
+ctypes.CDLL('libDBEngine.so', mode=ctypes.RTLD_GLOBAL)
+
 
 if sys.version_info >= (3, 6):
     from pymapd.dtypes import TDatumType as pymapd_dtype
@@ -43,6 +48,7 @@ except ImportError:
 EXECUTION_TYPE_ICP = 1
 EXECUTION_TYPE_ICP_GPU = 2
 EXECUTION_TYPE_CURSOR = 3
+EXECUTION_TYPE_ENGINE = 4
 
 fully_qualified_re = re.compile(r"(.*)\.(?:`(.*)`|(.*))")
 
@@ -432,33 +438,37 @@ class OmniSciDBClient(SQLClient):
             EXECUTION_TYPE_ICP,
             EXECUTION_TYPE_ICP_GPU,
             EXECUTION_TYPE_CURSOR,
+            EXECUTION_TYPE_ENGINE,
         ):
             raise Exception('Execution type defined not available.')
 
         self.execution_type = execution_type
 
-        if session_id:
-            if self.version < pkg_resources.parse_version('0.12.0'):
-                raise PyMapDVersionError(
-                    'Must have pymapd > 0.12 to use session ID'
-                )
-            self.con = pymapd.connect(
-                uri=uri,
-                host=host,
-                port=port,
-                protocol=protocol,
-                sessionid=session_id,
-            )
+        if execution_type == EXECUTION_TYPE_ENGINE:
+            self.con = dbe.PyDbEngine(uri.encode('utf-8'))
         else:
-            self.con = pymapd.connect(
-                uri=uri,
-                user=user,
-                password=password,
-                host=host,
-                port=port,
-                dbname=database,
-                protocol=protocol,
-            )
+            if session_id:
+                if self.version < pkg_resources.parse_version('0.12.0'):
+                    raise PyMapDVersionError(
+                        'Must have pymapd > 0.12 to use session ID'
+                    )
+                self.con = pymapd.connect(
+                    uri=uri,
+                    host=host,
+                    port=port,
+                    protocol=protocol,
+                    sessionid=session_id,
+                )
+            else:
+                self.con = pymapd.connect(
+                    uri=uri,
+                    user=user,
+                    password=password,
+                    host=host,
+                    port=port,
+                    dbname=database,
+                    protocol=protocol,
+                )
 
     def __del__(self):
         self.close()
@@ -555,18 +565,21 @@ class OmniSciDBClient(SQLClient):
         if isinstance(query, (DDL, DML)):
             query = query.compile()
 
-        if self.execution_type == EXECUTION_TYPE_ICP:
-            execute = self.con.select_ipc
-        elif self.execution_type == EXECUTION_TYPE_ICP_GPU:
-            execute = self.con.select_ipc_gpu
-        else:
-            execute = self.con.cursor().execute
-
         cursor = (
             OmniSciDBGeoCursor
             if FULL_GEO_SUPPORTED
             else OmniSciDBDefaultCursor
         )
+
+        if self.execution_type == EXECUTION_TYPE_ICP:
+            execute = self.con.select_ipc
+        elif self.execution_type == EXECUTION_TYPE_ICP_GPU:
+            execute = self.con.select_ipc_gpu
+        elif self.execution_type == EXECUTION_TYPE_ENGINE:
+            execute = self.con.executeDML
+            cursor = dbe.PyResultSet
+        else:
+            execute = self.con.cursor().execute
 
         try:
             result = cursor(execute(query))
