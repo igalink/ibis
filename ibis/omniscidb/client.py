@@ -571,20 +571,19 @@ class OmniSciDBClient(SQLClient):
             else OmniSciDBDefaultCursor
         )
 
-        if self.execution_type == EXECUTION_TYPE_ICP:
-            execute = self.con.select_ipc
-        elif self.execution_type == EXECUTION_TYPE_ICP_GPU:
-            execute = self.con.select_ipc_gpu
-        elif self.execution_type == EXECUTION_TYPE_ENGINE:
-            execute = self.con.executeDML
-            cursor = dbe.PyResultSet
+        if self.execution_type == EXECUTION_TYPE_ENGINE:
+            result = self.con.executeDML(query)
         else:
-            execute = self.con.cursor().execute
-
-        try:
-            result = cursor(execute(query))
-        except Exception as e:
-            raise Exception('{}: {}'.format(e, query))
+            if self.execution_type == EXECUTION_TYPE_ICP:
+                execute = self.con.select_ipc
+            elif self.execution_type == EXECUTION_TYPE_ICP_GPU:
+                execute = self.con.select_ipc_gpu
+            else:
+                execute = self.con.cursor().execute
+            try:
+                result = cursor(execute(query))
+            except Exception as e:
+                raise Exception('{}: {}'.format(e, query))
 
         if results:
             return result
